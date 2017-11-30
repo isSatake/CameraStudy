@@ -150,7 +150,7 @@ public class MainActivity extends Activity {
         List<Surface> outputs = Arrays.asList(getSurfaceFromTexture(textureView), imageReader.getSurface()); //各リクエストで出力先を設定してるのになぜここでも必要なのか
         previewRequest = makePreviewRequest();
         stillCaptureRequest = makeStillCaptureRequest();
-
+bui
         //カメラに画像をくれと言う
         //プレビュー用、撮影用といった複数の出力先(Surface)と、状態遷移(AF,AE,撮影,etc)のコールバックを渡す
         //このsessionは、別のsessionをattachする/cameraがcloseされる まで生き続ける

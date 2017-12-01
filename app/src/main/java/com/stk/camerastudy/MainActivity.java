@@ -179,8 +179,6 @@ public class MainActivity extends Activity {
             e.printStackTrace();
         }
         stillCaptureRequestBuilder.addTarget(imageReader.getSurface());
-        stillCaptureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_TRIGGER_START);
-        stillCaptureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_TRIGGER_IDLE);
         return stillCaptureRequestBuilder.build();
     }
 
@@ -193,9 +191,6 @@ public class MainActivity extends Activity {
             e.printStackTrace();
         }
         previewRequestBuilder.addTarget(getSurfaceFromTexture(textureView)); //カメラ画像を流すSurfaceをセット
-//        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO); //プレビュー中は自動AF
-//        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_TRIGGER_START);
-//        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_TRIGGER_IDLE);
         return previewRequestBuilder.build(); //リクエスト完成
     }
 
@@ -269,8 +264,10 @@ public class MainActivity extends Activity {
         //stopRepeatingしても数回発火してしまう
         @Override
         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
-//            Log.d(TAG, result.get(CaptureResult.CONTROL_AF_STATE) + "");
-            if (!isProcessing && result.get(CaptureResult.CONTROL_AF_STATE).equals(CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED)) {
+            Log.d(TAG, result.get(CaptureResult.CONTROL_AE_STATE) + "");
+            if (!isProcessing &&
+                    result.get(CaptureResult.CONTROL_AF_STATE).equals(CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED) &&
+                    result.get(CaptureResult.CONTROL_AE_STATE).equals(CaptureResult.CONTROL_AE_STATE_CONVERGED)) {
                 main.setBackgroundColor(0xff99cc00);
                 startCapture();
             } else {

@@ -1,8 +1,7 @@
 *.iml
 .gradle
 /local.properties
-/.idea/workspace.xml
-/.idea/libraries
+/.idea/*
 .DS_Store
 /build
 /captures
@@ -93,5 +92,3 @@ google-services.json
 freeline.py
 freeline/
 freeline_project_description.json
-
-.idea

@@ -13,6 +13,8 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.TotalCaptureResult;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
@@ -24,6 +26,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -32,7 +35,6 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -51,9 +53,11 @@ public class MainActivity extends Activity {
 
     private CaptureRequest previewRequest;
 
-    private CaptureRequest stillCaptureRequest;
+    private CaptureRequest stillRequest;
 
     private String selectedCameraId;
+
+    private LinearLayout main;
 
     private TextureView textureView;
 
@@ -63,12 +67,16 @@ public class MainActivity extends Activity {
 
     private boolean isPreviewing = false;
 
+    private boolean isProcessing = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         requestAppPermissions();
         setContentView(R.layout.activity_main);
+
+        main = findViewById(R.id.main);
 
         //カメラプレビュー用TextureViewの設定
         //TODO TextureViewって何
@@ -149,8 +157,8 @@ public class MainActivity extends Activity {
         //カメラ画像を流すSurfaceを設定(複数可)
         List<Surface> outputs = Arrays.asList(getSurfaceFromTexture(textureView), imageReader.getSurface()); //各リクエストで出力先を設定してるのになぜここでも必要なのか
         previewRequest = makePreviewRequest();
-        stillCaptureRequest = makeStillCaptureRequest();
-bui
+        stillRequest = makeStillCaptureRequest();
+
         //カメラに画像をくれと言う
         //プレビュー用、撮影用といった複数の出力先(Surface)と、状態遷移(AF,AE,撮影,etc)のコールバックを渡す
         //このsessionは、別のsessionをattachする/cameraがcloseされる まで生き続ける
@@ -171,6 +179,8 @@ bui
             e.printStackTrace();
         }
         stillCaptureRequestBuilder.addTarget(imageReader.getSurface());
+        stillCaptureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_TRIGGER_START);
+        stillCaptureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_TRIGGER_IDLE);
         return stillCaptureRequestBuilder.build();
     }
 
@@ -183,6 +193,9 @@ bui
             e.printStackTrace();
         }
         previewRequestBuilder.addTarget(getSurfaceFromTexture(textureView)); //カメラ画像を流すSurfaceをセット
+//        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO); //プレビュー中は自動AF
+//        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_TRIGGER_START);
+//        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_TRIGGER_IDLE);
         return previewRequestBuilder.build(); //リクエスト完成
     }
 
@@ -194,10 +207,10 @@ bui
 
     //CaptureSessionの状態遷移コールバック
     private CameraCaptureSession.StateCallback captureSessionCallBack = new CameraCaptureSession.StateCallback() {
-
-        //カメラの設定が完了した
+        //カメラの設定が完了した (最初の1回だけ)
         @Override
         public void onConfigured(CameraCaptureSession session) {
+            Log.d(TAG, "capture session onConfigured");
             if (null == camera) {
                 return;
             }
@@ -214,8 +227,9 @@ bui
     //撮影前プレビュー用リクエストを投げる
     //setRepeatingRequest→30FPSでカメラ画像を送ってくれる→targetとして設定したtextureViewにカメラ画像が見える
     private void startPreview() {
+        Log.d(TAG, "Start preview");
         try {
-            captureSession.setRepeatingRequest(previewRequest, null, null);
+            captureSession.setRepeatingRequest(previewRequest, previewCallback, null);
             isPreviewing = true;
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -223,6 +237,7 @@ bui
     }
 
     private void stopPreview() {
+        Log.d(TAG, "Stop preview");
         try {
             captureSession.stopRepeating();
             isPreviewing = false;
@@ -230,6 +245,51 @@ bui
             e.printStackTrace();
         }
     }
+
+    //撮影用リクエストを投げる
+    private void startCapture() {
+        Log.d(TAG, "Start capture");
+        try {
+            isProcessing = true;
+            stopPreview();
+            //1回しかリクエストできない→1フレームしか画像を取れない→AF/AEしてる暇がない→AF/AEはsetRepeatingRequestでやらないといけない
+            captureSession.capture(stillRequest, stillCallback, null);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    //プレビューリクエストのコールバック
+    //画像はViewで受け取るので渡ってこない
+    private final CameraCaptureSession.CaptureCallback previewCallback = new CameraCaptureSession.CaptureCallback() {
+        @Override
+        public void onCaptureProgressed(CameraCaptureSession session, CaptureRequest request, CaptureResult partialResult) {
+        }
+
+        //stopRepeatingしても数回発火してしまう
+        @Override
+        public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+//            Log.d(TAG, result.get(CaptureResult.CONTROL_AF_STATE) + "");
+            if (!isProcessing && result.get(CaptureResult.CONTROL_AF_STATE).equals(CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED)) {
+                main.setBackgroundColor(0xff99cc00);
+                startCapture();
+            } else {
+                main.setBackgroundColor(0xfff);
+            }
+        }
+    };
+
+    //撮影リクエストのコールバック
+    private final CameraCaptureSession.CaptureCallback stillCallback = new CameraCaptureSession.CaptureCallback() {
+        @Override
+        public void onCaptureProgressed(CameraCaptureSession session, CaptureRequest request, CaptureResult partialResult) {
+        }
+
+        @Override
+        public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+            Log.d(TAG, "onStillCaptureCompleted");
+        }
+    };
 
     //OSのファイルDBに写真を登録
     //フォトアプリなどにすぐ反映される
@@ -285,10 +345,11 @@ bui
     ImageReader.OnImageAvailableListener stillImageReaderAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
+            Log.d(TAG, "onImageAvailable");
             //TODO 結果をtextureViewに流したい
             //imagereaderからバイト列を取り出す
             Image image;
-            image = reader.acquireLatestImage();
+            image = reader.acquireLatestImage(); //2回以上取り出そうとするとIllegalStateException
             ByteBuffer buf = image.getPlanes()[0].getBuffer();
             byte[] bytes = new byte[buf.capacity()];
             buf.get(bytes);

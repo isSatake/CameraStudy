@@ -13,6 +13,7 @@ import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
@@ -25,9 +26,11 @@ import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -136,32 +139,6 @@ public class MainActivity extends Activity {
     private void createCameraPreviewSession() {
         Log.d(TAG, "createCameraPreviewSession");
 
-//        try {
-//            camera.createCaptureSession(Collections.singletonList(imageReader.getSurface()), new CameraCaptureSession.StateCallback() {
-//                @Override
-//                public void onConfigured(CameraCaptureSession session) {
-//                    Log.d(TAG, "capture session onConfigured");
-//                    // カメラがcloseされている場合
-//                    if (null == camera) {
-//                        return;
-//                    }
-//                    try {
-//                        captureSession = session;
-//                        captureSession.capture(finalCaptureBuilder.build(), null, null); //ImageReader.OnImageAvailableに結果がくる
-//                    } catch (CameraAccessException e) {
-//                        e.printStackTrace();
-//                    }
-//                }
-//
-//                @Override
-//                public void onConfigureFailed(CameraCaptureSession session) {
-//                    Log.d(TAG, "capture session onConfigureFailed");
-//                }
-//            }, null);
-//        } catch (CameraAccessException e) {
-//            e.printStackTrace();
-//        }
-
         //カメラ画像を流すSurfaceを設定(複数可)
         List<Surface> outputs = Arrays.asList(getSurfaceFromTexture(textureView), imageReader.getSurface()); //各リクエストで出力先を設定してるのになぜここでも必要なのか
         previewRequest = makePreviewRequest();
@@ -186,7 +163,15 @@ public class MainActivity extends Activity {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+
         stillCaptureRequestBuilder.addTarget(imageReader.getSurface());
+
+        try {
+            stillCaptureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, (ORIENTATIONS.get(getAppRotation()) + getCameraRotation(selectedCameraId) + 270) % 360);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+
         return stillCaptureRequestBuilder.build();
     }
 
@@ -427,6 +412,29 @@ public class MainActivity extends Activity {
             closeCamera(cameraDevice);
         }
     };
+
+    //カメラセンサの向きを取得
+    private int getCameraRotation(String id) throws CameraAccessException {
+        CameraManager cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
+        CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
+        return characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+    }
+
+    //アプリの向きを取得
+    private int getAppRotation() {
+        WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+        int rotation = windowManager.getDefaultDisplay().getRotation();
+        return rotation;
+    };
+
+    //角度
+    private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
+    static {
+        ORIENTATIONS.append(Surface.ROTATION_0, 90);
+        ORIENTATIONS.append(Surface.ROTATION_90, 0);
+        ORIENTATIONS.append(Surface.ROTATION_180, 270);
+        ORIENTATIONS.append(Surface.ROTATION_270, 180);
+    }
 
     private void requestAppPermissions() {
         //TODO permissionのlintが欲しい(スペルミスしてても例外出ないし気付けない)

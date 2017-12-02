@@ -6,6 +6,9 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
@@ -26,6 +29,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import java.io.File;
@@ -63,6 +67,8 @@ public class MainActivity extends Activity {
 
     private ImageReader imageReader;
 
+    private ImageView resultView;
+
     private Handler backgroundHandler = new Handler();
 
     private boolean isPreviewing = false;
@@ -87,6 +93,8 @@ public class MainActivity extends Activity {
         //Viewではない
         imageReader = ImageReader.newInstance(960, 720, ImageFormat.JPEG, 2); //ImageReader初期化
         imageReader.setOnImageAvailableListener(stillImageReaderAvailableListener, backgroundHandler); //ImageReader準備完了コールバック
+
+        resultView = findViewById(R.id.result);
 
         Button captureButton = findViewById(R.id.button_capture);
         captureButton.setOnClickListener(new View.OnClickListener() {
@@ -343,16 +351,16 @@ public class MainActivity extends Activity {
         @Override
         public void onImageAvailable(ImageReader reader) {
             Log.d(TAG, "onImageAvailable");
-            //TODO 結果をtextureViewに流したい
             //imagereaderからバイト列を取り出す
             Image image;
-            image = reader.acquireLatestImage(); //2回以上取り出そうとするとIllegalStateException
+            image = reader.acquireLatestImage(); //2回以上取り出そうとするとIllegalStateException //連続的に画像を受け取るプレビューではImageReaderは使いづらい
             ByteBuffer buf = image.getPlanes()[0].getBuffer();
             byte[] bytes = new byte[buf.capacity()];
             buf.get(bytes);
             //そのままfileに書き込み→JPEG
             saveByteToFile(bytes);
             //BitmapFactoryに流す→View
+            showResult(bytes);
         }
 
         private void saveByteToFile(byte[] bytes) {
@@ -388,6 +396,13 @@ public class MainActivity extends Activity {
                     }
                 }
             }
+        }
+
+        private void showResult(byte[] bytes) {
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inMutable = true;
+            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
+            resultView.setImageBitmap(bitmap);
         }
     };
 

@@ -6,14 +6,14 @@
     android:layout_height="match_parent">
 
     <FrameLayout
-        android:layout_width="1px"
-        android:layout_height="1px"
+        android:layout_width="240dp"
+        android:layout_height="380dp"
         tools:ignore="UselessParent">
 
         <TextureView
             android:id="@+id/texture"
             android:layout_width="match_parent"
-            android:layout_height="1px" />
+            android:layout_height="380dp" />
     </FrameLayout>
 
     <ImageView

@@ -16,6 +16,7 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
@@ -178,12 +179,14 @@ public class MainActivity extends Activity {
     //撮影前のプレビュー用リクエストを作成
     private CaptureRequest makePreviewRequest() {
         CaptureRequest.Builder previewRequestBuilder = null;
-        try {
+            try {
             previewRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
         previewRequestBuilder.addTarget(getSurfaceFromTexture(textureView)); //カメラ画像を流すSurfaceをセット
+        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, null);
+        previewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
         return previewRequestBuilder.build(); //リクエスト完成
     }
 
